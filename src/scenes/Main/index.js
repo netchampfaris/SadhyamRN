@@ -3,6 +3,7 @@ import {
     TouchableWithoutFeedback,
     StyleSheet,
     Navigator,
+    AsyncStorage
 } from 'react-native';
 import {
     Container, Header, Title, Content,
@@ -13,6 +14,8 @@ import Questions from './Questions';
 import Solutions from './Solutions';
 import Feed from './Feed';
 import Profile from './Profile';
+
+import { getLogoutUrl } from 'Sadhyam/src/services/api';
 
 class Main extends Component {
     constructor(props) {
@@ -36,6 +39,19 @@ class Main extends Component {
         this.setState({
             currentTab: tab
         });
+    }
+
+    logout() {
+        getLogoutUrl()
+            .then(fetch)
+            .then(() => {
+                AsyncStorage.multiRemove(['user', 'api_key'])
+            })
+            .then(() => {
+                const routes = this.props.navigator.getCurrentRoutes();
+                this.props.navigator.jumpTo(routes[0]);
+            })
+            .catch(e => console.log(logoutUrl, e))
     }
 
     render() {
@@ -66,7 +82,16 @@ class Main extends Component {
         return (
             <View style={styles.view}>
                 <Header>
+                    <Button transparent>
+                        <Icon name='ios-menu' />
+                    </Button>
                     <Title>Sadhyam</Title>
+                    <Button
+                        transparent
+                        onPress={() => this.logout()}
+                    >
+                        <Icon name='ios-log-out' />
+                    </Button>
                 </Header>
                 { this.state.currentTab.component }
                 <Footer>

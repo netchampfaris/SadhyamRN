@@ -4,20 +4,14 @@ import {
 	TouchableWithoutFeedback,
 	StyleSheet,
 	Navigator,
+	AsyncStorage
 } from 'react-native';
 import {
-	Container,
-	Header,
-	Title,
-	InputGroup,
-	Input,
-	Button,
-	Icon,
-	H2,
-	Text,
-	View,
-	Spinner,
+	Container, Header, Title,
+	InputGroup, Input, Button, Icon,
+	H2, Text, View, Spinner,
 } from 'native-base';
+import { getLoginUrl } from 'Sadhyam/src/services/api';
 
 class Login extends Component {
 	constructor(props) {
@@ -26,11 +20,25 @@ class Login extends Component {
 		this.initialState = {
 			isLoading: false,
 			error: null,
-			email: 'user1@facebook.com',
-			password: '12345678',
+			username: 'netchamp.faris@gmail.com',
+			password: 'qwe',
+			token: null,
+			user: null,
+			badLogin: null
 		};
 		this.state = this.initialState;
 	}
+
+	componentWillMount () {
+		// check if already logged in
+		AsyncStorage.multiGet(['user', 'api_key'])
+			.then(res =>res.map(val => val[1]))
+			.then(userdata => {
+				if(userdata[0] && userdata[1]) {
+					this.navigateToMain()
+				}
+			});
+	}	
 
 	onPressLogin() {
 		this.setState({
@@ -38,8 +46,48 @@ class Login extends Component {
 			error: '',
 		});
 		dismissKeyboard();
-		const routes = this.props.navigator.getCurrentRoutes();
-		this.props.navigator.jumpTo(routes[1]);
+		this.submitCredentials();
+	}
+
+	submitCredentials() {
+		const { username, password } = this.state;
+		this.login({ username, password })
+			.then(res => {
+				console.log('Login Success', res);
+				this.setState({
+					isLoading: false
+				});
+				this.navigateToMain();
+			})
+			.catch((error) => {
+				console.log(error)
+				this.setState({
+					badLogin: true,
+					errorMessage: error
+				});
+			});
+	}
+
+	login(user) {
+		return fetch(getLoginUrl(), {
+			method: 'POST',
+			headers: {
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(user)
+		})
+		.then(res => res.json())
+		.then(res => {
+			if(res.success) {
+				return AsyncStorage.multiSet([
+					['user', res.subscriber.user],
+					['api_key', res.subscriber.api_key]
+				]);
+			} else {
+				throw new 'Authentication Error'
+			}
+		});
 	}
 
 	renderError() {
@@ -52,6 +100,15 @@ class Login extends Component {
 		}
 	}
 
+	navigateToMain() {
+		const routes = this.props.navigator.getCurrentRoutes();
+		this.props.navigator.jumpTo(routes[1]);
+	}
+
+	test() {
+		AsyncStorage.clear();
+	}
+
 	render() {
 		return (
 			<Container>
@@ -62,12 +119,12 @@ class Login extends Component {
 							<InputGroup style={styles.input}>
 								<Icon style={styles.inputIcon} name="md-person" />
 								<Input
-									placeholder="Email"
+									placeholder="Username"
 									keyboardType="email-address"
 									autoCorrect={false}
 									autoCapitalize="none"
-									onChangeText={email => this.setState({ email })}
-									value={this.state.email}
+									onChangeText={username => this.setState({ username })}
+									value={this.state.username}
 								/>
 							</InputGroup>
 							<InputGroup style={styles.input}>
@@ -92,7 +149,7 @@ class Login extends Component {
 							)}
 							<Button
 								style={styles.button}
-								onPress={() => this.onPressLogin()}
+								onPress={() => this.test()}
 							>
 								Signup
 							</Button>

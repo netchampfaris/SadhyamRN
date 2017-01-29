@@ -12,23 +12,23 @@ import {
     Badge, Icon, Card, CardItem
 } from 'native-base';
 import { Grid, Row, Col } from 'react-native-easy-grid';
-import HTMLView from 'react-native-htmlview';
 import { getQuestions } from 'Sadhyam/src/services/api';
 
 class Questions extends Component {
 	constructor(props) {
 		super(props);
+        this.questions = [];
         this.state = {
-            questions: [],
             currentQuestion: {
                 index: -1,
-                html: '<p>No questions found</p>'
-            }
+                html: '<p>Loading questions...</p>'
+            },
+            selectedButton: 'Z'
         }
 	}
 
     getHTML(index) {
-        const q = this.state.questions[index];
+        const q = this.questions[index];
         return `<!DOCTYPE html>
             <html>
             <head>
@@ -59,66 +59,99 @@ class Questions extends Component {
         </html>`;
     }
 
+    getQuestion(index) {
+        return {
+            index,
+            html: this.getHTML(index)
+        }
+    }
+
     componentDidMount () {
-        getQuestions().then((data) => {
+        getQuestions().then(data => {
             console.log(data)
-            this.setState({ questions: data.objects });
-            this.showQuestion(3);
+            this.questions = data.objects;
+            this.showQuestion(0);
         });
     }
 
     showQuestion(index) {
-        console.log(this.state.currentQuestion);
-        if(index > this.state.questions.length ||
+        if(index > this.questions.length - 1 ||
             index < 0) return;
-        console.log('changing Question')
-        const html = this.getHTML(index);
-        this.setState({
-            currentQuestion: {
-                index: index,
-                html: html
-            }
-        });
-        console.log(this.state.currentQuestion);
+        console.log('showing ', index)
+
+        const currentQuestion = this.getQuestion(index);
+        this.setState({ currentQuestion });
+        setTimeout(() => this.refs['WebView'].reload(), 10);
+        setTimeout(() => this.refs['WebView'].reload(), 500);
     }
 
     nextQuestion() {
-        this.showQuestion(this.state.currentQuestion.index + 1);
+        const nextIndex = this.state.currentQuestion.index + 1;
+        this.showQuestion(nextIndex);
     }
     
     prevQuestion() {
-        this.showQuestion(this.state.currentQuestion.index - 1);
+        const prevIndex = this.state.currentQuestion.index - 1;
+        this.showQuestion(prevIndex);
     }
 
+    optionClicked(option) {
+        this.setState({selectedButton: option});
+    }
+
+    renderOptionButtons() {
+        const options = ['A', 'B', 'C', 'D', 'E'];
+        const styles = StyleSheet.create({
+            optionButton: {
+                marginLeft: 5
+            }
+        });
+
+        return options.map((opt, i) => {
+            let style = [styles.optionButton];
+            if(opt.length - 1 === i) {
+                style = style.push({marginRight: 5});
+            }
+            return <Col key={opt}>
+                <Button
+                    bordered={this.state.selectedButton !== opt}
+                    block style={style}
+                    onPress={this.optionClicked.bind(this, opt)}
+                >
+                    {opt}
+                </Button>
+            </Col>;
+        })
+    }
 
 	render() {
         const {height, width} = Dimensions.get('window');
 		return (
             <View style={{flex: 1}}>
                 <WebView
+                    ref='WebView'
                     style={[{
                         width: width,
                         height: height
                     }]}
                     source={{html: this.state.currentQuestion.html }}
                 />
-                <Grid style={{flex: 0.15}}>
-                    <Col><Button block large style={styles.option}>A</Button></Col>
-                    <Col><Button block large style={styles.option}>B</Button></Col>
-                    <Col><Button block large style={styles.option}>C</Button></Col>
-                    <Col><Button block large style={[styles.option, {marginRight: 5}]}>D</Button></Col>
+                <Grid style={{flex: 0.1}}>
+                    { this.renderOptionButtons() }
                 </Grid>
                 <Grid style={{flex: 0.1}}>
                     <Col>
                         <Button block bordered rounded
                             style={styles.option}
-                            onPress={this.nextQuestion.bind(this)}
+                            onPress={this.prevQuestion.bind(this)}
                         >
                             Prev</Button></Col>
+                    <Col></Col>
+                    <Col></Col>
                     <Col>
                         <Button block bordered rounded
                             style={[styles.option, {marginRight: 5}]}
-                            onPress={this.prevQuestion.bind(this)}
+                            onPress={this.nextQuestion.bind(this)}
                         >
                             Next</Button></Col>
                 </Grid>
@@ -131,6 +164,8 @@ const styles = StyleSheet.create({
     option: {
         marginLeft: 5
     }
-})
+});
+
+
 
 export default Questions;
