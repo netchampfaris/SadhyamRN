@@ -4,31 +4,31 @@ import {
     WebView,
     Text,
     StyleSheet,
-    Dimensions
+    Dimensions,
+    AsyncStorage
 } from 'react-native';
 import {
-	Container, Header, Title, Content,
+    Container, Header, Title, Content,
     Footer, FooterTab, Button,
     Badge, Icon, Card, CardItem
 } from 'native-base';
 import { Grid, Row, Col } from 'react-native-easy-grid';
-import { getQuestions } from 'Sadhyam/src/services/api';
+import { getQuestions, submitAnswers } from 'Sadhyam/src/services/api';
 
 class Questions extends Component {
-	constructor(props) {
-		super(props);
+    constructor(props) {
+        super(props);
         this.questions = [];
         this.state = {
             currentQuestion: {
-                index: -1,
-                html: '<p>Loading questions...</p>'
-            },
-            selectedButton: 'Z'
+                number: -1,
+                html: '<p>Loading questions...</p>',
+                selectedOption: 'Z'
+            }
         }
-	}
+    }
 
-    getHTML(index) {
-        const q = this.questions[index];
+    getHTML(number, content) {
         return `<!DOCTYPE html>
             <html>
             <head>
@@ -52,117 +52,187 @@ class Questions extends Component {
             </style>
             <body>
                 <div class='card'>
-                    <h3>Question ${index+1}</h3>
-                    ${q.question}
+                    <h3>Question ${number}</h3>
+                    ${content}
                 </div>
             <body>
         </html>`;
     }
 
-    getQuestion(index) {
+    getQuestion(number) {
+        const question = this.questions[number - 1];
         return {
-            index,
-            html: this.getHTML(index)
+            number,
+            html: question.questionHTML,
+            selectedOption: question.selectedOption
         }
     }
 
-    componentDidMount () {
+    componentDidMount() {
         getQuestions().then(data => {
-            console.log(data)
-            this.questions = data.objects;
-            this.showQuestion(0);
+            console.log(data);
+            this.setupQuestions(data.objects);
+            this.showQuestion(1);
         });
     }
 
-    showQuestion(index) {
-        if(index > this.questions.length - 1 ||
-            index < 0) return;
-        console.log('showing ', index)
+    setupQuestions(questions) {
+        this.questions = questions.map((q, i) =>
+            Object.assign(q, {
+                questionHTML: this.getHTML(i + 1, q.question),
+                selectedOption: 'Z'
+            })
+        )
+    }
 
-        const currentQuestion = this.getQuestion(index);
+    showQuestion(number) {
+        if (number > this.questions.length ||
+            number < 1) return;
+
+        const currentQuestion = this.getQuestion(number);
         this.setState({ currentQuestion });
         setTimeout(() => this.refs['WebView'].reload(), 10);
         setTimeout(() => this.refs['WebView'].reload(), 500);
+        // setTimeout(() => this.refs['WebView'].reload(), 1000);
     }
 
     nextQuestion() {
-        const nextIndex = this.state.currentQuestion.index + 1;
+        const nextIndex = this.state.currentQuestion.number + 1;
         this.showQuestion(nextIndex);
     }
-    
+
     prevQuestion() {
-        const prevIndex = this.state.currentQuestion.index - 1;
+        const prevIndex = this.state.currentQuestion.number - 1;
         this.showQuestion(prevIndex);
     }
 
     optionClicked(option) {
-        this.setState({selectedButton: option});
+        this.questions[this.state.currentQuestion.number - 1].selectedOption = option;
+        this.setState({
+            currentQuestion: Object.assign({}, this.state.currentQuestion, {
+                selectedOption: option
+            })
+        });
+    }
+
+    allQuestionsSolved() {
+        return this.questions
+            .filter(q => q.selectedOption !== 'Z').length ===
+                this.questions.length;
+    }
+
+    submitButtonClicked() {
+        console.log(this.questions)
+        const marksObtained = this.questions
+            .filter(q => q.selectedOption === q.correct_ans).length;
+        const totalQuestions = this.questions.length;
+            
+            submitAnswers({
+                marksObtained,
+                totalQuestions
+            })
+            .then(console.log);
+        
     }
 
     renderOptionButtons() {
         const options = ['A', 'B', 'C', 'D', 'E'];
         const styles = StyleSheet.create({
             optionButton: {
-                marginLeft: 5
+                width: 50,
+                marginLeft: 15,
+                marginRight: 15
             }
         });
 
         return options.map((opt, i) => {
             let style = [styles.optionButton];
-            if(opt.length - 1 === i) {
-                style = style.push({marginRight: 5});
-            }
             return <Col key={opt}>
                 <Button
-                    bordered={this.state.selectedButton !== opt}
-                    block style={style}
+                    bordered={this.state.currentQuestion.selectedOption !== opt}
+                    style={style}
                     onPress={this.optionClicked.bind(this, opt)}
-                >
+                    >
                     {opt}
                 </Button>
             </Col>;
         })
     }
 
-	render() {
-        const {height, width} = Dimensions.get('window');
-		return (
-            <View style={{flex: 1}}>
+    render() {
+        
+        return (
+            <View style={{ flex: 1 }}>
                 <WebView
                     ref='WebView'
-                    style={[{
-                        width: width,
-                        height: height
-                    }]}
-                    source={{html: this.state.currentQuestion.html }}
-                />
-                <Grid style={{flex: 0.1}}>
-                    { this.renderOptionButtons() }
+                    style={styles.webviewWrapper}
+                    source={{ html: this.state.currentQuestion.html }}
+                    />
+                <Grid style={styles.optionsWrapper}>
+                    {this.renderOptionButtons()}
                 </Grid>
-                <Grid style={{flex: 0.1}}>
+                <Grid style={styles.actionsWrapper}>
                     <Col>
-                        <Button block bordered rounded
-                            style={styles.option}
+                    {
+                        this.state.currentQuestion.number !== 1
+                        ? <Button bordered rounded
+                            style={styles.actionButton}
                             onPress={this.prevQuestion.bind(this)}
-                        >
-                            Prev</Button></Col>
-                    <Col></Col>
-                    <Col></Col>
+                            >
+                            Prev
+                        </Button>
+                        : null
+                    }
+                    </Col>
                     <Col>
-                        <Button block bordered rounded
-                            style={[styles.option, {marginRight: 5}]}
+                    {
+                        this.allQuestionsSolved()
+                        ? <Button bordered rounded
+                            style={styles.actionButton}
+                            onPress={this.submitButtonClicked.bind(this)}
+                            >
+                            Submit
+                        </Button>
+                        : null
+                    }
+                    </Col>
+                    <Col>
+                    {
+                        this.state.currentQuestion.number !== this.questions.length
+                        ? <Button bordered rounded
+                            style={styles.actionButton}
                             onPress={this.nextQuestion.bind(this)}
-                        >
-                            Next</Button></Col>
+                            >
+                            Next
+                        </Button>
+                        : null
+                    }
+                    </Col>
                 </Grid>
             </View>
-		);
-	}
+        );
+    }
 }
-
+const {height, width} = Dimensions.get('window');
 const styles = StyleSheet.create({
-    option: {
-        marginLeft: 5
+    webviewWrapper: {
+        width: width,
+        height: height
+    },
+    optionsWrapper: {
+        flex: 0.1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    actionsWrapper: {
+        flex: 0.1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    actionButton: {
+        width: 80,
+        marginLeft: 28,
+        marginRight: 28
     }
 });
 

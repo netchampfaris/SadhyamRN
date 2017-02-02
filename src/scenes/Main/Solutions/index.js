@@ -5,7 +5,8 @@ import {
     Text
 } from 'react-native';
 
-export default Solutions = () => {
+export default Solutions = (props) => {
+    console.log(props.style)
     return (
         <View style={{flex:1}}>
             <Text>Hello, test test</Text>
