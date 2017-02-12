@@ -4,19 +4,27 @@ import {
 	TouchableWithoutFeedback,
 	StyleSheet,
 	Navigator,
-	AsyncStorage
+	AsyncStorage,
+	StatusBar
 } from 'react-native';
 import {
 	Container, Header, Title,
-	InputGroup, Input, Button, Icon,
+	InputGroup, Button, Icon,
 	H2, Text, View, Spinner,
+	Grid, Col,
+	Form, Item, Input,
+	StyleProvider
 } from 'native-base';
+import GoogleSignIn from 'react-native-google-sign-in';
+import { FBLogin, FBLoginManager } from 'react-native-facebook-login';
+import LinearGradient from 'react-native-linear-gradient';
+import getTheme from 'Sadhyam/native-base-theme';
+
 import { getLoginUrl } from 'Sadhyam/src/services/api';
 
 class Login extends Component {
 	constructor(props) {
 		super(props);
-		console.log(props.navigator.getCurrentRoutes())
 		this.initialState = {
 			isLoading: false,
 			error: null,
@@ -29,16 +37,16 @@ class Login extends Component {
 		this.state = this.initialState;
 	}
 
-	componentWillMount () {
+	componentWillMount() {
 		// check if already logged in
 		AsyncStorage.multiGet(['user', 'api_key'])
-			.then(res =>res.map(val => val[1]))
+			.then(res => res.map(val => val[1]))
 			.then(userdata => {
-				if(userdata[0] && userdata[1]) {
+				if (userdata[0] && userdata[1]) {
 					this.navigateToMain()
 				}
 			});
-	}	
+	}
 
 	onPressLogin() {
 		this.setState({
@@ -77,17 +85,17 @@ class Login extends Component {
 			},
 			body: JSON.stringify(user)
 		})
-		.then(res => res.json())
-		.then(res => {
-			if(res.success) {
-				return AsyncStorage.multiSet([
-					['user', res.subscriber.user],
-					['api_key', res.subscriber.api_key]
-				]);
-			} else {
-				throw new 'Authentication Error'
-			}
-		});
+			.then(res => res.json())
+			.then(res => {
+				if (res.success) {
+					return AsyncStorage.multiSet([
+						['user', res.subscriber.user],
+						['api_key', res.subscriber.api_key]
+					]);
+				} else {
+					throw new 'Authentication Error'
+				}
+			});
 	}
 
 	renderError() {
@@ -109,56 +117,94 @@ class Login extends Component {
 		AsyncStorage.clear();
 	}
 
+	async onPressGoogleLogin() {
+		await GoogleSignIn.configure({
+			scopes: ['openid', 'email', 'profile'],
+			shouldFetchBasicProfile: true,
+		});
+		console.log('configured')
+		let user;
+		try {
+			user = await GoogleSignIn.signInPromise();
+			console.log(user)
+		} catch(e) {
+			console.log(e)
+		}
+		
+	}
+
+	onPressFacebookLogin() {
+
+	}
+
 	render() {
 		return (
 			<Container>
 				<View style={styles.container}>
-					<H2 style={styles.hero}>Welcome to Sadhyam</H2>
-					<TouchableWithoutFeedback onPress={dismissKeyboard}>
-						<View style={styles.content}>
-							<InputGroup style={styles.input}>
-								<Icon style={styles.inputIcon} name="md-person" />
-								<Input
-									placeholder="Username"
-									keyboardType="email-address"
-									autoCorrect={false}
-									autoCapitalize="none"
-									onChangeText={username => this.setState({ username })}
-									value={this.state.username}
-								/>
-							</InputGroup>
-							<InputGroup style={styles.input}>
-								<Icon style={styles.inputIcon} name="md-unlock" />
-								<Input
-									placeholder="Password"
-									onChangeText={password => this.setState({ password })}
-									value={this.state.password}
-									secureTextEntry
-								/>
-							</InputGroup>
-							{this.state.isLoading ? (
-								<Spinner size="small" color="#000000" />
-							) : (
-								<Button
-									style={styles.button}
-									onPress={() => this.onPressLogin()}
-								>
-									Signin
-								</Button>
-
-							)}
-							<Button
-								style={styles.button}
-								onPress={() => this.test()}
-							>
-								Signup
-							</Button>
-						</View>
-					</TouchableWithoutFeedback>
+					<LinearGradient colors={['#fff', '#bbb']}
+						style={[styles.gradientContainer]}
+					>
+						<StatusBar
+							backgroundColor="#00000033"
+							translucent={true}
+							barStyle="light-content"
+						/>
+						<TouchableWithoutFeedback onPress={dismissKeyboard}>
+							<View style={[styles.content]}>
+								<SadhyamHero />
+								<View style={[styles.loginForm]}>
+									<InputGroup style={styles.input}>
+										<Input
+											placeholder="Username"
+											keyboardType="email-address"
+											autoCorrect={false}
+											autoCapitalize="none"
+											onChangeText={username => this.setState({ username })}
+											value={this.state.username}
+										/>
+									</InputGroup>
+									<InputGroup style={styles.input}>
+										<Input
+											placeholder="Password"
+											onChangeText={password => this.setState({ password })}
+											value={this.state.password}
+											secureTextEntry
+										/>
+									</InputGroup>
+								</View>
+								<LoginButtons onGoogleLogin={() => this.onPressGoogleLogin()} />
+							</View>
+						</TouchableWithoutFeedback>
+					</LinearGradient>
 				</View>
 			</Container>
 		);
 	}
+}
+
+const SadhyamHero = () => {
+	return (
+		<View style={[styles.hero]}>
+			<Text style={{fontSize: 32, lineHeight: 32, height: 42, borderColor: 'white', borderWidth: 1}}>
+				Sadhyam
+			</Text>
+		</View>
+	)
+}
+
+const LoginButtons = ({showLogin, showSignup, onGoogleLogin}) => {
+	return (
+		<View style={[styles.loginButtons]}>
+			<Button style={[styles.loginButton]}
+				block rounded>
+				Login
+			</Button>
+			<Button style={[styles.loginButton]}
+				block rounded bordered>
+				Signup
+			</Button>
+		</View>
+	)
 }
 
 const styles = StyleSheet.create({
@@ -168,16 +214,35 @@ const styles = StyleSheet.create({
 		bottom: 0,
 		left: 0,
 		right: 0,
-		backgroundColor: '#fafbfc',
+		backgroundColor: 'transparent',
 	},
 	content: {
-		padding: 50,
 		flex: 1,
+		paddingLeft: 50,
+		paddingRight: 50
 	},
 	hero: {
-		paddingTop: 100,
-		paddingBottom: 50,
-		textAlign: 'center',
+		flex: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	loginButtons: {
+		flex: 2,
+		justifyContent: 'flex-start',
+		alignItems: 'center'
+	},
+	loginForm: {
+		
+	},
+	socialButton: {
+		// flex: 1,
+		height: 48,
+		marginTop: 15,
+		// marginLeft: 35,
+		// marginRight: 35
+	},
+	loginButton: {
+		marginBottom: 10
 	},
 	shadow: {
 		flex: 1,
@@ -199,6 +264,24 @@ const styles = StyleSheet.create({
 		color: 'red',
 		marginBottom: 20,
 	},
+	gradientContainer: {
+		flex: 1
+	},
+	buttonText: {
+		fontSize: 18,
+		fontFamily: 'Gill Sans',
+		textAlign: 'center',
+		margin: 10,
+		color: '#ffffff',
+		backgroundColor: 'transparent',
+	}
 });
+
+const debugBorder = color => {
+	return {
+		borderColor: color,
+		borderWidth: 1
+	};
+}
 
 export default Login;

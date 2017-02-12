@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "954888503659",
+    "project_id": "firebase-sadhyam"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954888503659:android:08ffcd5f159d3d7a",
+        "android_client_info": {
+          "package_name": "com.sadhyam"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "954888503659-uj5nh1u7qrrbq69plun014ikivdh20m5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMd-UAcGFuhS1b0Sii3EspOJGJJ89U-j8"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,10 +5,15 @@ import {
     Text
 } from 'react-native';
 
-export default Profile = () => {
-    return (
-        <View style={{flex:1}}>
-            <Text>Hello, test test</Text>
-        </View>
-    )
+class Profile extends Component {
+
+    render() {
+        return (
+            <View style={{flex:1}}>
+                <Text>Profile page</Text>
+            </View>
+        )
+    }
 }
+
+export default Profile;
